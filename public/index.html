@@ -320,8 +320,7 @@ function makeSmallCard(c){
 }
 
 function addBet(amt){
-  if(!me())return;
-  const bal = me()?.balance||1000;
+  const bal = lastKnownBalance || 1000;
   if(myBet+amt>bal){setMsg('Saldo insufficiente!');return;}
   myBet+=amt;
   document.getElementById('bet-display').textContent='$'+myBet;
