@@ -196,6 +196,7 @@ function handleMessage(msg){
 }
 
 function renderState(state){
+  if(me) lastKnownBalance = me.balance;
   gamePhase = state.phase;
   const me = state.players[myId];
 
