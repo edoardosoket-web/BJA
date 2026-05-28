@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Blackjack Multiplayer</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:#0a2e14;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;color:#fff;overflow:hidden}
+
+/* LOBBY */
+#lobby{position:fixed;inset:0;background:#0a2e14;display:flex;align-items:center;justify-content:center;z-index:100;flex-direction:column;gap:16px;padding:2rem}
+#lobby h1{font-size:32px;color:#f0a500;text-align:center}
+#lobby p{color:rgba(255,255,255,0.6);text-align:center;font-size:14px}
+#lobby input{width:100%;max-width:320px;padding:12px 16px;border-radius:12px;border:2px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:#fff;font-size:16px;text-align:center;outline:none}
+#lobby input:focus{border-color:#f0a500}
+#lobby input::placeholder{color:rgba(255,255,255,0.4)}
+.btn-lobby{width:100%;max-width:320px;padding:14px;border-radius:12px;font-size:16px;font-weight:700;border:none;cursor:pointer;background:#f0a500;color:#1a1a1a;transition:opacity 0.15s}
+.btn-lobby:hover{opacity:0.88}
+#player-count{font-size:13px;color:rgba(255,255,255,0.5)}
+
+/* GAME */
+#game{height:100%;display:flex;flex-direction:column;padding:env(safe-area-inset-top,8px) 8px env(safe-area-inset-bottom,8px) 8px;gap:6px;display:none}
+
+/* HEADER */
+.header{display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.header-info{font-size:12px;color:rgba(255,255,255,0.5)}
+.phase-badge{background:rgba(240,165,0,0.2);color:#f0a500;font-size:12px;font-weight:600;padding:4px 12px;border-radius:20px}
+
+/* DEALER */
+.dealer-area{background:#1a5c38;border-radius:12px;padding:10px 12px;flex-shrink:0}
+.area-label{font-size:10px;color:rgba(255,255,255,0.5);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px}
+.hand{display:flex;gap:5px;flex-wrap:nowrap;align-items:center;overflow-x:auto;min-height:72px;padding-bottom:2px}
+.hand::-webkit-scrollbar{display:none}
+.card{width:48px;height:72px;background:#fff;border-radius:6px;display:flex;flex-direction:column;justify-content:space-between;padding:3px 4px;box-shadow:1px 2px 4px rgba(0,0,0,0.4);flex-shrink:0}
+.card.red{color:#c0392b}
+.card.black{color:#111}
+.card-top{font-size:11px;font-weight:700;line-height:1.1}
+.card-suit{font-size:18px;text-align:center;line-height:1;margin:auto}
+.card-bot{font-size:11px;font-weight:700;line-height:1.1;align-self:flex-end;transform:rotate(180deg)}
+.card.back{background:repeating-linear-gradient(45deg,#1a3a8f,#1a3a8f 4px,#c0392b 4px,#c0392b 8px);border:2px solid #fff}
+.score-badge{display:inline-block;background:rgba(0,0,0,0.4);color:#fff;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;margin-top:4px}
+
+/* PLAYERS GRID */
+.players-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;flex:1;min-height:0;overflow-y:auto}
+.players-grid::-webkit-scrollbar{display:none}
+.player-card{background:#1a5c38;border-radius:10px;padding:8px 10px;border:2px solid transparent;transition:border-color 0.2s;position:relative}
+.player-card.my-card{background:#1e6640}
+.player-card.active-turn{border-color:#f0a500;box-shadow:0 0 12px rgba(240,165,0,0.3)}
+.player-card.bust{opacity:0.5}
+.player-name{font-size:11px;font-weight:700;color:rgba(255,255,255,0.9);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.player-name .you-tag{color:#f0a500;font-size:10px;margin-left:4px}
+.player-hand{display:flex;gap:3px;min-height:54px;align-items:center;overflow-x:auto;flex-wrap:nowrap}
+.player-hand::-webkit-scrollbar{display:none}
+.small-card{width:36px;height:54px;background:#fff;border-radius:5px;display:flex;flex-direction:column;justify-content:space-between;padding:2px 3px;box-shadow:1px 2px 3px rgba(0,0,0,0.4);flex-shrink:0}
+.small-card.red{color:#c0392b}
+.small-card.black{color:#111}
+.small-card-top{font-size:9px;font-weight:700;line-height:1.1}
+.small-card-suit{font-size:14px;text-align:center;line-height:1;margin:auto}
+.small-card-bot{font-size:9px;font-weight:700;line-height:1.1;align-self:flex-end;transform:rotate(180deg)}
+.small-card.back{background:repeating-linear-gradient(45deg,#1a3a8f,#1a3a8f 3px,#c0392b 3px,#c0392b 6px);border:2px solid #fff}
+.player-info-row{display:flex;justify-content:space-between;align-items:center;margin-top:4px}
+.player-balance{font-size:10px;color:rgba(255,255,255,0.6)}
+.player-score{font-size:10px;background:rgba(0,0,0,0.35);padding:1px 6px;border-radius:10px;color:#fff}
+.status-badge{position:absolute;top:6px;right:6px;font-size:9px;font-weight:700;padding:2px 6px;border-radius:8px}
+.status-bust{background:#e74c3c;color:#fff}
+.status-stand{background:#2980b9;color:#fff}
+.status-blackjack{background:#f0a500;color:#1a1a1a}
+.status-win{background:#27ae60;color:#fff}
+.status-lose{background:#e74c3c;color:#fff}
+.status-push{background:rgba(255,255,255,0.3);color:#fff}
+.bet-tag{font-size:10px;color:#f0a500;font-weight:600}
+
+/* MSG BAR */
+.msg-bar{background:rgba(0,0,0,0.3);border-radius:10px;padding:6px 12px;text-align:center;font-size:12px;color:rgba(255,255,255,0.7);flex-shrink:0;min-height:30px}
+
+/* BOTTOM CONTROLS */
+.bottom{background:rgba(0,0,0,0.3);border-radius:14px;padding:10px;flex-shrink:0}
+.chips-row{display:flex;gap:6px;align-items:center;margin-bottom:8px;justify-content:center}
+.chip{width:46px;height:46px;border-radius:50%;border:3px dashed rgba(255,255,255,0.6);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;cursor:pointer;user-select:none;transition:transform 0.1s;flex-shrink:0}
+.chip:active{transform:scale(0.9)}
+.chip.c1{background:#e74c3c}
+.chip.c5{background:#3498db}
+.chip.c25{background:#27ae60}
+.chip.c100{background:#8e44ad}
+.bet-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;justify-content:center}
+.bet-display{background:rgba(0,0,0,0.4);color:#fff;border-radius:10px;padding:6px 14px;font-size:13px;display:flex;align-items:center;gap:6px}
+.bet-val{font-size:18px;font-weight:700}
+.controls{display:flex;gap:6px}
+.btn{flex:1;padding:12px 6px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;border:none;transition:transform 0.1s,opacity 0.15s}
+.btn:active{transform:scale(0.95)}
+.btn:disabled{opacity:0.25;pointer-events:none}
+.btn-primary{background:#f0a500;color:#1a1a1a}
+.btn-green{background:#27ae60;color:#fff}
+.btn-red{background:#e74c3c;color:#fff}
+.btn-blue{background:#2980b9;color:#fff}
+.btn-gray{background:rgba(255,255,255,0.18);color:#fff}
+
+#waiting-msg{text-align:center;padding:16px;color:rgba(255,255,255,0.5);font-size:13px}
+</style>
+</head>
+<body>
+
+<!-- LOBBY -->
+<div id="lobby">
+  <h1>🃏 Blackjack</h1>
+  <p>Multiplayer fino a 8 giocatori</p>
+  <input type="text" id="name-input" placeholder="Il tuo nome" maxlength="20">
+  <button class="btn-lobby" onclick="joinGame()">Entra al tavolo</button>
+  <div id="player-count">Connessione...</div>
+</div>
+
+<!-- GAME -->
+<div id="game">
+  <div class="header">
+    <div class="header-info" id="header-info">Tavolo Blackjack</div>
+    <div class="phase-badge" id="phase-badge">In attesa</div>
+  </div>
+
+  <div class="dealer-area">
+    <div class="area-label">Dealer</div>
+    <div class="hand" id="dealer-hand"></div>
+    <span class="score-badge" id="dealer-score">?</span>
+  </div>
+
+  <div class="players-grid" id="players-grid"></div>
+
+  <div class="msg-bar" id="msg-bar">In attesa di giocatori...</div>
+
+  <div class="bottom">
+    <div id="bet-ui">
+      <div class="chips-row">
+        <div class="chip c1" onclick="addBet(1)">$1</div>
+        <div class="chip c5" onclick="addBet(5)">$5</div>
+        <div class="chip c25" onclick="addBet(25)">$25</div>
+        <div class="chip c100" onclick="addBet(100)">$100</div>
+      </div>
+      <div class="bet-row">
+        <div class="bet-display">Puntata: <span class="bet-val" id="bet-display">$0</span></div>
+        <button class="btn btn-gray" style="flex:none;padding:8px 12px;font-size:13px" onclick="clearBet()">✕</button>
+      </div>
+      <div class="controls">
+        <button class="btn btn-primary" id="confirm-bet-btn" onclick="confirmBet()" disabled>✓ Conferma</button>
+        <button class="btn btn-gray" id="start-btn" onclick="startGame()" style="display:none">▶ Inizia</button>
+      </div>
+    </div>
+    <div id="play-ui" style="display:none">
+      <div class="controls">
+        <button class="btn btn-green" id="hit-btn" onclick="sendAction('hit')">Carta</button>
+        <button class="btn btn-red" id="stand-btn" onclick="sendAction('stand')">Stai</button>
+        <button class="btn btn-blue" id="double-btn" onclick="sendAction('double')">2x</button>
+      </div>
+    </div>
+    <div id="waiting-msg" style="display:none">In attesa del tuo turno...</div>
+  </div>
+</div>
+
+<script>
+let ws, myId, myBet=0, gamePhase='waiting', isMyTurn=false;
+const WS_URL = (location.protocol==='https:'?'wss://':'ws://')+location.host;
+
+function connect(){
+  ws = new WebSocket(WS_URL);
+  ws.onopen = () => setMsg('Connesso! Inserisci il nome e unisciti.');
+  ws.onclose = () => { setMsg('Disconnesso. Ricarica la pagina.'); setTimeout(connect, 3000); }
+  ws.onerror = () => setMsg('Errore connessione...');
+  ws.onmessage = (e) => handleMessage(JSON.parse(e.data));
+}
+
+function handleMessage(msg){
+  switch(msg.type){
+    case 'welcome':
+      myId = msg.id;
+      document.getElementById('player-count').textContent = `Giocatori al tavolo: ${msg.playerCount}/${8}`;
+      break;
+    case 'error':
+      alert(msg.msg); break;
+    case 'player_joined':
+    case 'player_left':
+      document.getElementById('player-count').textContent = `Giocatori al tavolo: ${msg.count}/8`;
+      break;
+    case 'phase':
+      setMsg(msg.msg||'');
+      break;
+    case 'your_turn':
+      if(msg.playerId===myId) setMsg('🎯 È il tuo turno!');
+      else setMsg(`⏳ Turno di ${msg.name}...`);
+      break;
+    case 'msg':
+      setMsg(msg.msg); break;
+    case 'state':
+      renderState(msg); break;
+  }
+}
+
+function renderState(state){
+  gamePhase = state.phase;
+  const me = state.players[myId];
+
+  // Phase badge
+  const phases = {waiting:'In attesa',betting:'Puntate',playing:'In gioco',dealer:'Dealer',results:'Risultati'};
+  document.getElementById('phase-badge').textContent = phases[state.phase]||state.phase;
+  document.getElementById('header-info').textContent = `${Object.keys(state.players).length}/8 giocatori`;
+
+  // Dealer
+  renderDealerHand(state.dealer.hand, state.dealer.score);
+
+  // Players grid
+  renderPlayers(state.players, state.myId, state.currentTurn);
+
+  // Controls
+  isMyTurn = state.currentTurn === myId;
+  updateControls(state, me);
+}
+
+function renderDealerHand(hand, score){
+  const el = document.getElementById('dealer-hand');
+  el.innerHTML='';
+  for(let c of hand) el.appendChild(makeCard(c, false));
+  document.getElementById('dealer-score').textContent = hand.some(c=>c.hidden) ? '?' : score;
+}
+
+function renderPlayers(players, myId, currentTurn){
+  const grid = document.getElementById('players-grid');
+  grid.innerHTML='';
+  for(let [id, p] of Object.entries(players)){
+    const div = document.createElement('div');
+    div.className = 'player-card' +
+      (id===myId?' my-card':'') +
+      (id===currentTurn&&gamePhase==='playing'?' active-turn':'') +
+      (p.status==='bust'?' bust':'');
+
+    const statusMap = {bust:'status-bust',stand:'status-stand',blackjack:'status-blackjack',win:'status-win',lose:'status-lose',push:'status-push'};
+    const statusLabel = {bust:'BUST',stand:'STAI',blackjack:'BJ!',win:'VINTO',lose:'PERSO',push:'PARI'};
+    const showStatus = ['bust','stand','blackjack','win','lose','push'].includes(p.status);
+
+    div.innerHTML = `
+      <div class="player-name">${p.name}${id===myId?'<span class="you-tag">(tu)</span>':''}</div>
+      <div class="player-hand" id="hand-${id}"></div>
+      <div class="player-info-row">
+        <span class="player-balance">$${p.balance}</span>
+        ${p.bet>0?`<span class="bet-tag">$${p.bet}</span>`:''}
+        <span class="player-score">${p.score||0}</span>
+      </div>
+      ${showStatus?`<span class="status-badge ${statusMap[p.status]}">${statusLabel[p.status]}</span>`:''}
+    `;
+    grid.appendChild(div);
+
+    const handEl = div.querySelector(`#hand-${id}`);
+    for(let c of p.hand) handEl.appendChild(makeSmallCard(c));
+  }
+}
+
+function updateControls(state, me){
+  const betUI = document.getElementById('bet-ui');
+  const playUI = document.getElementById('play-ui');
+  const waitMsg = document.getElementById('waiting-msg');
+  const startBtn = document.getElementById('start-btn');
+
+  betUI.style.display='none';
+  playUI.style.display='none';
+  waitMsg.style.display='none';
+
+  if(state.phase==='waiting'){
+    betUI.style.display='block';
+    startBtn.style.display='block';
+    document.getElementById('confirm-bet-btn').style.display='none';
+    return;
+  }
+  startBtn.style.display='none';
+  document.getElementById('confirm-bet-btn').style.display='block';
+
+  if(state.phase==='betting'){
+    if(me && me.status==='betting'){
+      betUI.style.display='block';
+    } else {
+      waitMsg.style.display='block';
+      document.getElementById('waiting-msg').textContent='Puntata confermata! In attesa degli altri...';
+    }
+  } else if(state.phase==='playing'){
+    if(isMyTurn && me && me.status==='playing'){
+      playUI.style.display='block';
+      document.getElementById('double-btn').disabled = (me.hand&&me.hand.length!==2);
+    } else {
+      waitMsg.style.display='block';
+      document.getElementById('waiting-msg').textContent = isMyTurn?'':'In attesa del tuo turno...';
+    }
+  } else {
+    waitMsg.style.display='block';
+    document.getElementById('waiting-msg').textContent = state.phase==='results'?'Nuova mano tra poco...':'In attesa...';
+  }
+}
+
+function makeCard(c, small=false){
+  if(c.hidden){
+    const d=document.createElement('div');
+    d.className='card back';
+    return d;
+  }
+  const isRed = c.s==='♥'||c.s==='♦';
+  const d=document.createElement('div');
+  d.className='card '+(isRed?'red':'black');
+  d.innerHTML=`<div class="card-top">${c.v}<br>${c.s}</div><div class="card-suit">${c.s}</div><div class="card-bot">${c.v}<br>${c.s}</div>`;
+  return d;
+}
+
+function makeSmallCard(c){
+  if(c.hidden){
+    const d=document.createElement('div');
+    d.className='small-card back';
+    return d;
+  }
+  const isRed = c.s==='♥'||c.s==='♦';
+  const d=document.createElement('div');
+  d.className='small-card '+(isRed?'red':'black');
+  d.innerHTML=`<div class="small-card-top">${c.v}<br>${c.s}</div><div class="small-card-suit">${c.s}</div><div class="small-card-bot">${c.v}<br>${c.s}</div>`;
+  return d;
+}
+
+function addBet(amt){
+  if(!me())return;
+  const bal = me()?.balance||1000;
+  if(myBet+amt>bal){setMsg('Saldo insufficiente!');return;}
+  myBet+=amt;
+  document.getElementById('bet-display').textContent='$'+myBet;
+  document.getElementById('confirm-bet-btn').disabled=false;
+}
+
+function clearBet(){
+  myBet=0;
+  document.getElementById('bet-display').textContent='$0';
+  document.getElementById('confirm-bet-btn').disabled=true;
+}
+
+function confirmBet(){
+  if(myBet<=0)return;
+  ws.send(JSON.stringify({type:'place_bet',amount:myBet}));
+  myBet=0;
+  document.getElementById('bet-display').textContent='$0';
+}
+
+function sendAction(action){
+  ws.send(JSON.stringify({type:action}));
+}
+
+function startGame(){
+  ws.send(JSON.stringify({type:'start_game'}));
+}
+
+function me(){
+  return null; // resolved via state
+}
+
+function setMsg(t){
+  const el=document.getElementById('msg-bar');
+  if(el) el.textContent=t;
+}
+
+function joinGame(){
+  const name = document.getElementById('name-input').value.trim()||'Giocatore';
+  ws.send(JSON.stringify({type:'set_name',name}));
+  document.getElementById('lobby').style.display='none';
+  document.getElementById('game').style.display='flex';
+}
+
+connect();
+</script>
+</body>
+</html>
